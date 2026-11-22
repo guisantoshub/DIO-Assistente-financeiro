@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    
+    /* Petrol Green & Teal Design Tokens */
+    --color-petrol-950: #00241e;
+    --color-petrol-900: #003830;
+    --color-petrol-800: #004d40;
+    --color-petrol-700: #00695c;
+    --color-petrol-600: #00796b;
+    --color-petrol-500: #00897b;
+    --color-petrol-400: #26a69a;
+    --color-petrol-300: #4db6ac;
+    --color-petrol-200: #80cbc4;
+    --color-petrol-100: #b2dfdb;
+    --color-petrol-50: #e0f2f1;
+    --color-petrol-surface: #f4fbf9;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #f8fafc;
+    color: #0f172a;
+    letter-spacing: -0.011em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom scrollbars for chat */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

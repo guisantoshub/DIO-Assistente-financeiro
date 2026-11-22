@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "pluggy": {
+      "url": "https://mcp.pluggy.ai/mcp",
+      "type": "streamable-http"
+    },
+    "plaid": {
+      "command": "uvx",
+      "args": ["mcp-server-plaid"],
+      "env": {
+        "PLAID_CLIENT_ID": "SEU_CLIENT_ID_SANDBOX",
+        "PLAID_SECRET": "SEU_SECRET_SANDBOX",
+        "PLAID_ENV": "sandbox"
+      }
+    }
+  }
+}
