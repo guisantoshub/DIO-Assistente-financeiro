@@ -26,6 +26,7 @@
     "lucide-react": "^1.77.0",
     "oxlint": "^1.90.0",
     "postcss": "^8.5.33",
+    "puppeteer-core": "^25.18.1",
     "tailwind-merge": "^3.7.1",
     "tailwindcss": "^4.3.5",
     "typescript": "~7.0.2",
