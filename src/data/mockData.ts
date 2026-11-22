@@ -228,3 +228,127 @@ export const PLUGGY_DOCUMENTATION_KNOWLEDGE = {
   cardDebtMechanic: `No Open Finance (Pluggy e Plaid), o saldo exibido em um **cartão de crédito** representa o montante de **dívida acumulada (fatura atual a pagar)**, e não um saldo a favor como na conta corrente. Por isso, quando o cartão mostra $410.00 (ou R$ 2.460,00), significa que esse é o valor devido. O valor disponível ($1,590.00) é o limite restante de crédito.`,
   plaidSignConvention: `**Regra de Sinal da Plaid:** Na Plaid API, **valores positivos representam saída de dinheiro** (débito, despesa, compras), enquanto **valores negativos representam entrada de dinheiro** (depósitos, estornos, salários). Essa é uma convenção contábil anglo-saxã onde a conta do usuário é tratada do ponto de vista do passivo do banco.`
 };
+
+import type { InvestmentPortfolio, NotificationItem, UserProfile } from '../types';
+
+export const MOCK_INVESTMENTS: InvestmentPortfolio = {
+  profile: 'Moderado',
+  totalValueBRL: 84500.00,
+  totalValueUSD: 14444.44,
+  returnLast12Months: 13.82,
+  benchmarkPct: 122,
+  assets: [
+    {
+      id: 'inv_01',
+      name: 'CDB Bradesco Prime 110% CDI',
+      category: 'Renda Fixa Pós',
+      allocationPct: 35,
+      valueBRL: 29575.00,
+      valueUSD: 5055.55,
+      expectedReturn: '110% do CDI (14.2% a.a.)',
+      riskLevel: 'Baixo',
+      institution: 'Banco Bradesco'
+    },
+    {
+      id: 'inv_02',
+      name: 'Tesouro IPCA+ 2035 com Juros Semestrais',
+      category: 'Renda Fixa Inflação',
+      allocationPct: 25,
+      valueBRL: 21125.00,
+      valueUSD: 3611.11,
+      expectedReturn: 'IPCA + 6.35% a.a.',
+      riskLevel: 'Baixo',
+      institution: 'Tesouro Direto / Bradesco'
+    },
+    {
+      id: 'inv_03',
+      name: 'Fundos Imobiliários (HGLG11 & KNCR11)',
+      category: 'Fundos Imobiliários',
+      allocationPct: 20,
+      valueBRL: 16900.00,
+      valueUSD: 2888.88,
+      expectedReturn: 'Dividend Yield 9.4% a.a.',
+      riskLevel: 'Médio',
+      institution: 'B3 / Bradesco Corretora'
+    },
+    {
+      id: 'inv_04',
+      name: 'Ações Dividendos Brasil (ITSA4, BBSE3, VIVT3)',
+      category: 'Ações & Dividendos',
+      allocationPct: 15,
+      valueBRL: 12675.00,
+      valueUSD: 2166.66,
+      expectedReturn: 'Dividend Yield 8.2% + Ganho de Capital',
+      riskLevel: 'Médio',
+      institution: 'B3 / Ágora Investimentos'
+    },
+    {
+      id: 'inv_05',
+      name: 'Plaid CD 12-Month Term Certificate',
+      category: 'Internacional',
+      allocationPct: 5,
+      valueBRL: 4225.00,
+      valueUSD: 722.24,
+      expectedReturn: '5.10% a.a. em USD',
+      riskLevel: 'Baixo',
+      institution: 'First Platypus Bank (Plaid Sandbox)'
+    }
+  ]
+};
+
+export const MOCK_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'notif_1',
+    title: 'Fatura do Cartão fecha em 3 dias',
+    description: 'Sua fatura de US$ 410,00 (≈ R$ 2.398,50) vence em 25/11. Saldo em conta suficiente para quitação integral.',
+    timestamp: 'Há 15 minutos',
+    type: 'alert',
+    read: false
+  },
+  {
+    id: 'notif_2',
+    title: 'Proventos creditados em conta',
+    description: 'Recebimento de R$ 284,10 referentes ao rendimento mensal do CDB 110% CDI e dividendos de FIIs.',
+    timestamp: 'Hoje, 09:30',
+    type: 'success',
+    read: false
+  },
+  {
+    id: 'notif_3',
+    title: 'Sincronização MCP Concluída',
+    description: 'Servidores Pluggy (Open Finance Brasil) e Plaid (Sandbox) sincronizaram dados com 0 erros de autorização.',
+    timestamp: 'Ontem, 18:45',
+    type: 'info',
+    read: true
+  }
+];
+
+export const MOCK_USERS: UserProfile[] = [
+  {
+    id: 'usr_main',
+    name: 'Guilherme Santos',
+    email: 'guilherme.santos@dio.demo',
+    role: 'Titular da Conta Principal',
+    documentMasked: '•••.482.918-••',
+    investorProfile: 'Moderado',
+    status: 'Ativo'
+  },
+  {
+    id: 'usr_dep_1',
+    name: 'Maria Silva',
+    email: 'maria.silva@dio.demo',
+    role: 'Dependente / Cartão Adicional',
+    documentMasked: '•••.912.304-••',
+    investorProfile: 'Conservador',
+    status: 'Ativo'
+  },
+  {
+    id: 'usr_bot_mcp',
+    name: 'Pluggy Open Finance Sync',
+    email: 'mcp-agent@pluggy.ai',
+    role: 'Agente MCP Autorizado BACEN',
+    documentMasked: 'CNPJ ••.•••.•••/0001-••',
+    investorProfile: 'Auditoria & Leitura',
+    status: 'Ativo'
+  }
+];

@@ -54,7 +54,48 @@ Abaixo você confere o resumo financeiro com conversão declarada em Reais (cota
     };
   }
 
-  // 2. Pergunta sobre PADRÕES DE GASTO / TRANSAÇÕES
+  // 2. Pergunta sobre INVESTIMENTOS & CARTEIRA MODERADA
+  if (
+    normalized.includes('invest') || 
+    normalized.includes('carteira') || 
+    normalized.includes('moderado') || 
+    normalized.includes('cdb') ||
+    normalized.includes('fii') ||
+    normalized.includes('ações') ||
+    normalized.includes('rendimento')
+  ) {
+    const toolCalls: MCPToolCall[] = [
+      {
+        id: `call_${Date.now()}_inv`,
+        server: 'pluggy',
+        toolName: 'pluggy_get_investments',
+        parameters: { client_profile: 'moderado', include_benchmarks: true },
+        resultSummary: `Obtida carteira de R$ 84.500,00 (5 ativos). Rentabilidade 12M: +13,82% (122% do CDI).`,
+        latencyMs: 36,
+        timestamp,
+        endpointUrl: 'https://mcp.pluggy.ai/mcp/investments'
+      }
+    ];
+
+    const replyText = `### 📈 Análise da sua Carteira (Perfil Moderado)
+
+Consultei o conector de investimentos do **Open Finance Brasil** via **Pluggy MCP**:
+
+- **Patrimônio Total Alocado:** **R$ 84.500,00** (~US$ ${(84500 / usdBrlRate).toFixed(2)})
+- **Rentabilidade Acumulada (12M):** **+13,82%** (representando **122% do CDI**)
+- **Estratégia Recomendada:** Alocação de 60% em Renda Fixa (CDB 110% CDI + Tesouro IPCA+ 2035) garantindo liquidez e proteção inflacionária, 20% em Fundos Imobiliários gerando proventos mensais isentos, 15% em ações de dividendos defensivos e 5% em Dólar (Plaid CD).
+
+Você pode visualizar a aba **Investimentos** no menu lateral para o gráfico completo de alocação de ativos.`;
+
+    return {
+      replyText,
+      toolCalls,
+      dataPayload: {
+        type: 'mcp_explanation',
+        data: { topic: 'card_debt' }
+      }
+    };
+  }
   if (
     normalized.includes('padrão') || 
     normalized.includes('padroes') || 

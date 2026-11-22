@@ -68,3 +68,44 @@ export interface MCPConfig {
   plaidStatus: 'connected' | 'disconnected' | 'connecting';
   usdBrlRate: number;
 }
+
+export interface InvestmentAsset {
+  id: string;
+  name: string;
+  category: 'Renda Fixa Pós' | 'Renda Fixa Inflação' | 'Fundos Imobiliários' | 'Ações & Dividendos' | 'Internacional';
+  allocationPct: number;
+  valueBRL: number;
+  valueUSD: number;
+  expectedReturn: string;
+  riskLevel: 'Baixo' | 'Médio' | 'Alto';
+  institution: string;
+}
+
+export interface InvestmentPortfolio {
+  profile: 'Conservador' | 'Moderado' | 'Arrojado';
+  totalValueBRL: number;
+  totalValueUSD: number;
+  returnLast12Months: number;
+  benchmarkPct: number; // ex: 122% do CDI
+  assets: InvestmentAsset[];
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  type: 'alert' | 'success' | 'info';
+  read: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl?: string;
+  documentMasked: string;
+  investorProfile: string;
+  status: 'Ativo' | 'Pendente' | 'Bloqueado';
+}
