@@ -50,7 +50,7 @@ export const InvestmentsPage: React.FC<InvestmentsPageProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto py-2 space-y-6">
       
       {/* Top Banner & Profile Overview */}
       <div className="bg-gradient-to-r from-[#004d40] to-[#00796b] rounded-3xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">

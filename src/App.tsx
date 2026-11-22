@@ -5,11 +5,13 @@ import { AccountsOverview } from './components/organisms/AccountsOverview';
 import { TransactionsTable } from './components/organisms/TransactionsTable';
 import { InvestmentsPage } from './components/organisms/InvestmentsPage';
 import { UsersPage } from './components/organisms/UsersPage';
+import { ChatWindow } from './components/organisms/ChatWindow';
 import { LoginPage } from './components/organisms/LoginPage';
 import { FloatingChat } from './components/organisms/FloatingChat';
 import { MCPConfigModal } from './components/organisms/MCPConfigModal';
 import { ArchitectureDrawer } from './components/organisms/ArchitectureDrawer';
 import { NotificationsModal } from './components/organisms/NotificationsModal';
+import { Minimize2, Bot } from 'lucide-react';
 import type { ChatMessage, MCPConfig, NotificationItem } from './types';
 import { 
   MOCK_ACCOUNTS, 
@@ -28,7 +30,7 @@ export const App: React.FC = () => {
   const [showBRL, setShowBRL] = useState<boolean>(true);
 
   // Modals & Floating Drawer states
-  const [isFloatingChatOpen, setIsFloatingChatOpen] = useState<boolean>(true);
+  const [isFloatingChatOpen, setIsFloatingChatOpen] = useState<boolean>(false);
   const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
@@ -55,7 +57,7 @@ export const App: React.FC = () => {
       sender: 'assistant',
       content: `Olá, **Guilherme**! Sou seu **Assistente Financeiro Inteligente**.
 
-Estou conectado via **MCP** à **Pluggy** (Open Finance Brasil) e à **Plaid** (Sandbox de Contas e Investimentos).
+Estou conectado via **MCP (Model Context Protocol)** à **Pluggy** (Open Finance Brasil) e à **Plaid** (Sandbox de Contas e Investimentos).
 
 Como posso te ajudar hoje? Posso detalhar seus saldos, investimentos de perfil moderado, ou analisar o extrato das suas contas.`,
       timestamp: '10:00',
@@ -115,7 +117,7 @@ Como posso te ajudar hoje? Posso detalhar seus saldos, investimentos de perfil m
   };
 
   const handleAskAIAboutInvestments = () => {
-    setIsFloatingChatOpen(true);
+    setActiveTab('chat');
     handleSendMessage('Explique a estratégia da minha carteira de perfil moderado e a rentabilidade acumulada.');
   };
 
@@ -143,14 +145,17 @@ Como posso te ajudar hoje? Posso detalhar seus saldos, investimentos de perfil m
             setIsConfigOpen(true);
           } else {
             setActiveTab(tab);
+            if (tab === 'chat') {
+              setIsFloatingChatOpen(false);
+            }
           }
         }}
         onLogout={() => setIsAuthenticated(false)}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area with 40px responsive lateral padding (px-5 sm:px-10) */}
       <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${
+        className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${
           isSidebarExpanded ? 'ml-64' : 'ml-20'
         }`}
       >
@@ -168,13 +173,53 @@ Como posso te ajudar hoje? Posso detalhar seus saldos, investimentos de perfil m
         />
 
         {/* Content Views */}
-        <main className="flex-1 pt-20 pb-12">
+        <main className="flex-1 pt-20 pb-12 px-5 sm:px-10">
           {activeTab === 'home' && (
             <AccountsOverview
               accounts={MOCK_ACCOUNTS}
               usdBrlRate={mcpConfig.usdBrlRate}
               showBRL={showBRL}
             />
+          )}
+
+          {/* Full Page Chat View (with sidebar visible, exactly as requested) */}
+          {activeTab === 'chat' && (
+            <div className="max-w-5xl mx-auto space-y-4">
+              <div className="flex items-center justify-between bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#004d40] text-white flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-teal-200" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-sm text-slate-900">
+                      Assistente Financeiro Inteligente
+                    </h2>
+                    <p className="text-[11px] text-slate-500">
+                      Modo tela inteira • Integrações ativas: Pluggy (HTTP) e Plaid (STDIO)
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('home');
+                    setIsFloatingChatOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Minimizar para widget flutuante no canto da tela"
+                >
+                  <Minimize2 className="w-4 h-4 text-slate-500" />
+                  <span>Minimizar p/ Flutuante</span>
+                </button>
+              </div>
+
+              <ChatWindow
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                isProcessing={isProcessing}
+                usdBrlRate={mcpConfig.usdBrlRate}
+              />
+            </div>
           )}
 
           {activeTab === 'transactions' && (
@@ -200,15 +245,21 @@ Como posso te ajudar hoje? Posso detalhar seus saldos, investimentos de perfil m
         </main>
       </div>
 
-      {/* Floating & Maximizable Assistant Chat */}
-      <FloatingChat
-        isOpen={isFloatingChatOpen}
-        onToggleOpen={() => setIsFloatingChatOpen(!isFloatingChatOpen)}
-        messages={messages}
-        onSendMessage={handleSendMessage}
-        isProcessing={isProcessing}
-        usdBrlRate={mcpConfig.usdBrlRate}
-      />
+      {/* Floating Chat (Visible when not in full-page chat mode) */}
+      {activeTab !== 'chat' && (
+        <FloatingChat
+          isOpen={isFloatingChatOpen}
+          onToggleOpen={() => setIsFloatingChatOpen(!isFloatingChatOpen)}
+          onExpandToFullPage={() => {
+            setIsFloatingChatOpen(false);
+            setActiveTab('chat');
+          }}
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isProcessing={isProcessing}
+          usdBrlRate={mcpConfig.usdBrlRate}
+        />
+      )}
 
       {/* Modals & Drawers */}
       <NotificationsModal

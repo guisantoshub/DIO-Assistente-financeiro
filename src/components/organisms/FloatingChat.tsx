@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { ChatMessage } from '../../types';
 import { ChatWindow } from './ChatWindow';
-import { Bot, Maximize2, Minimize2, X } from 'lucide-react';
+import { Bot, Maximize2, X } from 'lucide-react';
 
 export interface FloatingChatProps {
   isOpen: boolean;
   onToggleOpen: () => void;
+  onExpandToFullPage: () => void;
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
   isProcessing: boolean;
@@ -15,13 +16,12 @@ export interface FloatingChatProps {
 export const FloatingChat: React.FC<FloatingChatProps> = ({
   isOpen,
   onToggleOpen,
+  onExpandToFullPage,
   messages,
   onSendMessage,
   isProcessing,
   usdBrlRate
 }) => {
-  const [isMaximized, setIsMaximized] = useState(false);
-
   // When closed, render only the sleek floating FAB button
   if (!isOpen) {
     return (
@@ -50,15 +50,10 @@ export const FloatingChat: React.FC<FloatingChatProps> = ({
     );
   }
 
-  // Floating dock or Fullscreen modal
+  // Floating dock widget
   return (
-    <div
-      className={`fixed z-50 transition-all duration-300 flex flex-col ${
-        isMaximized
-          ? 'inset-2 sm:inset-6 bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-200'
-          : 'bottom-6 right-4 sm:right-6 w-full max-w-[450px] h-[650px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden'
-      }`}
-    >
+    <div className="fixed bottom-6 right-4 sm:right-6 w-full max-w-[450px] h-[650px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200">
+      
       {/* Floating Header */}
       <div className="h-14 bg-gradient-to-r from-[#004d40] to-[#00695c] text-white px-4 flex items-center justify-between shrink-0 rounded-t-3xl border-b border-teal-700/50">
         <div className="flex items-center gap-2.5">
@@ -75,16 +70,17 @@ export const FloatingChat: React.FC<FloatingChatProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Maximize / Minimize toggle */}
+          {/* Expand to Full Page (opens as page with sidebar visible, exactly as requested) */}
           <button
-            onClick={() => setIsMaximized(!isMaximized)}
-            className="p-1.5 rounded-lg text-teal-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title={isMaximized ? 'Restaurar Tamanho Flutuante' : 'Expandir para Tela Toda'}
+            onClick={onExpandToFullPage}
+            className="p-1.5 rounded-lg text-teal-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-medium"
+            title="Abrir em tela inteira com menu lateral visível"
           >
-            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            <Maximize2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Tela Cheia</span>
           </button>
 
-          {/* Close button */}
+          {/* Close / Minimize button */}
           <button
             onClick={onToggleOpen}
             className="p-1.5 rounded-lg text-teal-100 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"

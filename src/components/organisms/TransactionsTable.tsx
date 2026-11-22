@@ -73,7 +73,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto py-2 space-y-6">
       
       {/* Plaid Sign Rule Callout */}
       <Card className="bg-[#e0f2f1]/40 border border-[#004d40]/20 p-4 rounded-2xl flex items-start gap-3">
