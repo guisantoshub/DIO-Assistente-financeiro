@@ -118,6 +118,7 @@ Selecione uma das perguntas rápidas abaixo ou digite sua dúvida!`,
             messages={messages}
             onSendMessage={handleSendMessage}
             isProcessing={isProcessing}
+            usdBrlRate={mcpConfig.usdBrlRate}
           />
         )}
 

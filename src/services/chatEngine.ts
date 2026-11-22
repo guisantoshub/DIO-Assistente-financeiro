@@ -1,5 +1,5 @@
 import type { ChatMessage, MCPToolCall } from '../types';
-import { MOCK_ACCOUNTS, MOCK_TRANSACTIONS, PLUGGY_DOCUMENTATION_KNOWLEDGE } from '../data/mockData';
+import { MOCK_ACCOUNTS, MOCK_TRANSACTIONS } from '../data/mockData';
 
 export interface ChatEngineResponse {
   message: ChatMessage;
@@ -27,43 +27,22 @@ export function processUserQuery(
       .filter(a => a.type === 'depository')
       .reduce((acc, curr) => acc + curr.currentBalance, 0);
 
-    const creditDebtUSD = MOCK_ACCOUNTS
-      .find(a => a.type === 'credit')?.currentBalance || 0;
-
-    const totalBRL = totalCheckingSavingsUSD * usdBrlRate;
-    const debtBRL = creditDebtUSD * usdBrlRate;
-
     const toolCalls: MCPToolCall[] = [
       {
         id: `call_${Date.now()}_1`,
         server: 'plaid',
         toolName: 'plaid_get_accounts',
         parameters: { client_id: 'sandbox_client_id', include_balances: true },
-        resultSummary: `Retornou 4 contas ativas (Checking, Savings, CD, Credit Card). Saldo bruto em depósito: $${totalCheckingSavingsUSD.toFixed(2)} USD.`,
+        resultSummary: `Retornou 4 contas ativas (Checking, Savings, CD, Credit Card). Saldo líquido em depósito: $${totalCheckingSavingsUSD.toFixed(2)} USD.`,
         latencyMs: 38,
         timestamp,
         endpointUrl: 'https://sandbox.plaid.com/accounts/balance/get'
       }
     ];
 
-    const replyText = `### 📊 Resumo dos Seus Saldos (Plaid Sandbox)
+    const replyText = `Consultei o servidor **MCP Plaid** e obtive a posição consolidada das suas contas em tempo real.
 
-Consultei o servidor **MCP Plaid** e obtive a posição consolidada das suas contas:
-
-| Conta | Tipo | Saldo Atual (USD) | Em Reais (R$ ${usdBrlRate.toFixed(2)}) | Situação |
-| :--- | :--- | :---: | :---: | :--- |
-| **Plaid Checking** | Corrente | **$110,00** | R$ ${(110 * usdBrlRate).toFixed(2)} | Disponível |
-| **Plaid Savings** | Poupança | **$23.631,98** | R$ ${(23631.98 * usdBrlRate).toFixed(2)} | Reserva |
-| **Plaid CD** | Depósito Prazo | **$1.000,00** | R$ ${(1000 * usdBrlRate).toFixed(2)} | Aplicado |
-| **Plaid Diamond** | Cartão de Crédito | **$410,00** | R$ ${debtBRL.toFixed(2)} | ⚠️ **Fatura a pagar** |
-
----
-
-> 💡 **Total em Depósito Disponível:** **$${totalCheckingSavingsUSD.toFixed(2)} USD** (~**R$ ${totalBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}**)
-> 
-> 💳 **Fatura do Cartão (Passivo):** **$${creditDebtUSD.toFixed(2)} USD** (~**R$ ${debtBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}**)
-> 
-> 🛡️ *Aviso: Dados fictícios de sandbox da Plaid. No cartão de crédito, o saldo representa dívida acumulada no ciclo.*`;
+Abaixo você confere o resumo financeiro com conversão declarada em Reais (cotação **US$ 1 = R$ ${usdBrlRate.toFixed(2)}**), separando claramente o **saldo disponível em depósito** da **fatura do cartão de crédito**:`;
 
     return {
       replyText,
@@ -101,7 +80,6 @@ Consultei o servidor **MCP Plaid** e obtive a posição consolidada das suas con
       }
     ];
 
-    // Cálculos dos 3 padrões
     const subTotal = MOCK_TRANSACTIONS
       .filter(t => t.spendingPattern === 'assinaturas_recorrentes')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -114,28 +92,7 @@ Consultei o servidor **MCP Plaid** e obtive a posição consolidada das suas con
       .filter(t => t.spendingPattern === 'varejo_viagens')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const replyText = `### 🔍 Análise dos 3 Padrões de Gasto Recentes
-
-O servidor **MCP Plaid** processou as transações do período. Identificamos 3 padrões de consumo claros:
-
-#### 1. 🔄 Assinaturas Recorrentes & Serviços Digitais
-- **Total:** **$${subTotal.toFixed(2)} USD** (~R$ ${(subTotal * usdBrlRate).toFixed(2)})
-- **Exemplos:** Netflix ($19.99), Spotify Family ($16.99), Amazon Prime ($14.99), GitHub Copilot ($10.00).
-- *Comportamento:* Cobranças mensais fixas debitadas no cartão de crédito e na conta corrente.
-
-#### 2. 🍔 Alimentação & Restaurantes
-- **Total:** **$${foodTotal.toFixed(2)} USD** (~R$ ${(foodTotal * usdBrlRate).toFixed(2)})
-- **Exemplos:** Starbucks ($8.75), Uber Eats ($34.50), Whole Foods ($78.40), In-N-Out Burger ($15.20).
-- *Comportamento:* Despesas rotineiras de alimentação física e delivery.
-
-#### 3. 🛍️ Varejo, Lojas & Mobilidade
-- **Total:** **$${retailTotal.toFixed(2)} USD** (~R$ ${(retailTotal * usdBrlRate).toFixed(2)})
-- **Exemplos:** Amazon Marketplace ($142.30), Apple Store ($29.00), CVS Pharmacy ($32.15), Uber Trip ($22.80).
-- *Comportamento:* Compras de eletrônicos, farmácia e deslocamentos pontuais.
-
----
-
-> 📌 **Lembrete de Convenção Plaid:** Na Plaid, **valores positivos representam saída de dinheiro (débito)** e **valores negativos representam entrada (crédito/salário)**. A folha da TechCorp entrou como \`-$2,500.00\`.`;
+    const replyText = `O servidor **MCP Plaid** processou seu extrato recente. Agrupamos seus gastos em **3 padrões de consumo claros** para você visualizar onde seu dinheiro está sendo alocado:`;
 
     return {
       replyText,
@@ -168,18 +125,7 @@ O servidor **MCP Plaid** processou as transações do período. Identificamos 3 
       }
     ];
 
-    const replyText = `### 💳 Por que o Saldo do Cartão de Crédito Aparece como Dívida?
-
-Nas APIs bancárias e no **Open Finance** (tanto na Plaid quanto na Pluggy):
-
-1. **Natureza Contábil (Passivo):** Uma conta corrente é um **ativo** seu (dinheiro seu guardado). Já o cartão de crédito é uma **linha de crédito concedida pelo banco** (um empréstimo rotativo).
-2. **O Que Significa o Valor:** Quando o seu cartão *Plaid Diamond* mostra **$410.00**, isso **não significa que você tem $410 guardados**, mas sim que você utilizou **$410.00 do seu limite** e essa fatura está em aberto para pagamento.
-3. **Limite vs. Fatura:**
-   - **Limite Total:** $2.000,00
-   - **Saldo Atual (Fatura Devedora):** **$410,00** (~R$ ${(410 * usdBrlRate).toFixed(2)})
-   - **Saldo Disponível:** **$1.590,00** (margem que você ainda pode gastar antes do fechamento).
-
-Por isso, na contabilidade e na resposta da IA, o saldo de cartão é apresentado como **dívida/passivo** para que o usuário não confunda com saldo positivo para saques.`;
+    const replyText = `Nas APIs bancárias e no **Open Finance** (Plaid e Pluggy), o saldo de um **cartão de crédito** tem uma natureza contábil oposta à de uma conta corrente. Veja o comparativo visual abaixo:`;
 
     return {
       replyText,
@@ -211,20 +157,9 @@ Por isso, na contabilidade e na resposta da IA, o saldo de cartão é apresentad
       }
     ];
 
-    const replyText = `### 🇧🇷 O que é um "Item" na Pluggy e no Open Finance Brasil?
+    const replyText = `Consultei a documentação oficial via **Streamable HTTP MCP Pluggy** (\`https://mcp.pluggy.ai/mcp\`). 
 
-Conforme consultado na documentação oficial via **Streamable HTTP MCP Pluggy** (\`https://mcp.pluggy.ai/mcp\`):
-
-> **Definição de Item:**
-> ${PLUGGY_DOCUMENTATION_KNOWLEDGE.itemDefinition}
-
-#### Principais Características de um Item:
-1. **Conector Bancário:** Cada Item se conecta a um conector específico (ex: Conector Bradesco, Conector Itaú, Conector Nubank).
-2. **Consentimento LGPD/BACEN:** No Brasil, a criação de um Item requer o consentimento expresso e autenticação em duas etapas (MFA) pelo titular da conta.
-3. **Agregação de Contas:** Sob um único Item, a Pluggy descobre automaticamente todas as contas associadas àquele CPF/CNPJ (ex: conta corrente, poupança, cartão e investimentos).
-4. **Status de Sincronização:** Um Item possui estados como \`UPDATING\`, \`UPDATED\`, \`WAITING_USER_INPUT\` ou \`LOGIN_ERROR\`.
-
-*O MCP da Pluggy permite à IA consultar em tempo real schemas, conectores e guias de implementação do ecossistema financeiro brasileiro.*`;
+No ecossistema brasileiro de Open Finance, um **Item** é o alicerce de toda integração financeira:`;
 
     return {
       replyText,
@@ -256,16 +191,12 @@ Conforme consultado na documentação oficial via **Streamable HTTP MCP Pluggy**
       }
     ];
 
-    const replyText = `### ➕➖ Convenção de Sinais na Plaid API
+    const replyText = `Ao trabalhar com a API da **Plaid**, a convenção contábil de sinais pode parecer contra-intuitiva à primeira vista:
 
-Ao trabalhar com o **mcp-server-plaid**, é crucial atentar-se à convenção contábil adotada:
+- 🔴 **Valor Positivo (\`+19.99\`):** Representa **SAÍDA de dinheiro (Débito/Compra)**.
+- 🟢 **Valor Negativo (\`-2500.00\`):** Representa **ENTRADA de dinheiro (Crédito/Salário)**.
 
-- 🔴 **Valor POSITIVO (\`+amount\`):** Representa **SAÍDA de dinheiro** (débito, despesa, compra no débito/crédito, taxa bancária).
-  - *Exemplo:* Comprar na Netflix por \`19.99\` vem como \`+19.99\`.
-- 🟢 **Valor NEGATIVO (\`-amount\`):** Representa **ENTRADA de dinheiro** (crédito, depósito, estorno, salário).
-  - *Exemplo:* Recebimento do salário da TechCorp de R$ 2.500 vem como \`-2500.00\`.
-
-*Essa lógica decorre da perspectiva contábil anglo-saxã do balanço de passivos da instituição financeira.*`;
+Isso ocorre porque a conta bancária é tratada sob a perspectiva contábil de passivo da instituição. Nosso assistente normaliza essa visualização para facilitar o entendimento do usuário final.`;
 
     return {
       replyText,
@@ -290,16 +221,9 @@ Ao trabalhar com o **mcp-server-plaid**, é crucial atentar-se à convenção co
     }
   ];
 
-  const replyText = `Olá! Sou seu **Assistente Financeiro Inteligente**. Estou conectado via **MCP (Model Context Protocol)** a duas fontes bancárias:
-1. **Pluggy MCP** (\`https://mcp.pluggy.ai/mcp\`): Fornece conhecimento técnico do Open Finance Brasil (conceito de Item, conectores e consentimento).
-2. **Plaid MCP** (\`mcp-server-plaid\`): Fornece dados em tempo real da sandbox de teste com contas, saldos e transações.
+  const replyText = `Olá! Sou seu **Assistente Financeiro Inteligente**. Estou conectado via **MCP (Model Context Protocol)** à **Pluggy** (Open Finance Brasil) e à **Plaid** (Sandbox de Contas e Extratos).
 
-Você pode me perguntar:
-- *"Qual é o meu saldo atual em todas as contas?"*
-- *"Explique meus gastos recentes nos 3 padrões de consumo."*
-- *"Por que o saldo do cartão aparece como dívida?"*
-- *"O que é um Item na Pluggy?"*
-- *"Como funciona a regra de sinais da Plaid?"*`;
+Escolha uma das perguntas rápidas abaixo ou me pergunte diretamente sobre seus saldos, faturas ou padrões de consumo!`;
 
   return {
     replyText,

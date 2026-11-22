@@ -4,18 +4,25 @@ import { Avatar } from '../atoms/Avatar';
 import { Button } from '../atoms/Button';
 import { MCPCallBadge } from '../molecules/MCPCallBadge';
 import { QuickPrompts } from '../molecules/QuickPrompts';
+import { ContextualAccountsWidget } from '../molecules/ContextualAccountsWidget';
+import { ContextualPatternsWidget } from '../molecules/ContextualPatternsWidget';
+import { ContextualExplanationWidget } from '../molecules/ContextualExplanationWidget';
 import { Send, AlertTriangle, ShieldCheck } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export interface ChatWindowProps {
   messages: ChatMessageType[];
   onSendMessage: (text: string) => void;
   isProcessing: boolean;
+  usdBrlRate?: number;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   onSendMessage,
-  isProcessing
+  isProcessing,
+  usdBrlRate = 5.85
 }) => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,70 +46,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleSelectQuickPrompt = (prompt: string) => {
     if (isProcessing) return;
     onSendMessage(prompt);
-  };
-
-  // Helper to format text with simple markdown styling
-  const renderMessageContent = (content: string) => {
-    // Process markdown-like tables, headers, and bullet lists
-    const lines = content.split('\n');
-    return (
-      <div className="space-y-2 text-sm leading-relaxed">
-        {lines.map((line, idx) => {
-          if (line.startsWith('### ')) {
-            return (
-              <h3 key={idx} className="text-base font-bold text-slate-900 pt-2 pb-1 border-b border-slate-200/70">
-                {line.replace('### ', '')}
-              </h3>
-            );
-          }
-          if (line.startsWith('#### ')) {
-            return (
-              <h4 key={idx} className="text-sm font-semibold text-[#004d40] pt-1">
-                {line.replace('#### ', '')}
-              </h4>
-            );
-          }
-          if (line.startsWith('> ')) {
-            return (
-              <blockquote key={idx} className="pl-3 border-l-3 border-[#004d40] bg-[#e0f2f1]/30 py-1.5 px-2 rounded-r-lg text-slate-700 italic text-xs my-2">
-                {line.replace('> ', '')}
-              </blockquote>
-            );
-          }
-          if (line.startsWith('- ')) {
-            return (
-              <li key={idx} className="list-disc list-inside text-slate-700 pl-1">
-                <span dangerouslySetInnerHTML={{ __html: formatInline(line.replace('- ', '')) }} />
-              </li>
-            );
-          }
-          if (line.startsWith('|')) {
-            // Table row preview
-            return (
-              <div key={idx} className="font-mono text-xs bg-slate-50 px-2 py-0.5 rounded border border-slate-200 overflow-x-auto text-slate-800">
-                {line}
-              </div>
-            );
-          }
-          if (line.trim() === '---') {
-            return <hr key={idx} className="my-2 border-slate-200" />;
-          }
-          if (line.trim() === '') {
-            return <div key={idx} className="h-1" />;
-          }
-          return (
-            <p key={idx} className="text-slate-700" dangerouslySetInnerHTML={{ __html: formatInline(line) }} />
-          );
-        })}
-      </div>
-    );
-  };
-
-  const formatInline = (text: string) => {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-      .replace(/`(.*?)`/g, '<code class="bg-slate-100 text-[#004d40] px-1 py-0.5 rounded text-xs font-mono font-medium">$1</code>');
   };
 
   return (
@@ -138,7 +81,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 className="shrink-0 mt-0.5"
               />
 
-              <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+              <div className={`flex flex-col max-w-[90%] sm:max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-semibold text-slate-600">
                     {isUser ? 'Você' : 'PetroFinance AI'}
@@ -148,30 +91,56 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   </span>
                 </div>
 
-                {/* Message Body */}
+                {/* Message Bubble */}
                 <div
-                  className={`rounded-2xl px-4 py-3.5 shadow-2xs ${
+                  className={`rounded-2xl px-4 py-3.5 shadow-2xs w-full ${
                     isUser
-                      ? 'bg-[#004d40] text-white rounded-tr-none'
+                      ? 'bg-[#004d40] text-white rounded-tr-none max-w-fit ml-auto'
                       : 'bg-white border border-slate-200/90 text-slate-800 rounded-tl-none shadow-xs'
                   }`}
                 >
                   {isUser ? (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                   ) : (
-                    <>
+                    <div className="space-y-3">
                       {/* MCP Tool Calls Inspector */}
                       {msg.toolCalls && msg.toolCalls.length > 0 && (
-                        <div className="mb-3">
+                        <div>
                           {msg.toolCalls.map((tc) => (
                             <MCPCallBadge key={tc.id} toolCall={tc} />
                           ))}
                         </div>
                       )}
 
-                      {/* Text content */}
-                      {renderMessageContent(msg.content)}
-                    </>
+                      {/* Contextual Rich Payload Widgets */}
+                      {msg.dataPayload?.type === 'accounts' && (
+                        <ContextualAccountsWidget
+                          accounts={msg.dataPayload.data}
+                          usdBrlRate={usdBrlRate}
+                        />
+                      )}
+
+                      {msg.dataPayload?.type === 'patterns' && (
+                        <ContextualPatternsWidget
+                          data={msg.dataPayload.data}
+                          usdBrlRate={usdBrlRate}
+                        />
+                      )}
+
+                      {msg.dataPayload?.type === 'mcp_explanation' && (
+                        <ContextualExplanationWidget
+                          topic={msg.dataPayload.data.topic}
+                          usdBrlRate={usdBrlRate}
+                        />
+                      )}
+
+                      {/* Clean Markdown Typography */}
+                      <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed prose-headings:font-heading prose-headings:tracking-tight prose-a:text-[#004d40] prose-code:bg-slate-100 prose-code:text-[#004d40] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-blockquote:border-l-[#004d40] prose-blockquote:bg-[#e0f2f1]/30 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:rounded-r-lg prose-table:text-xs prose-th:bg-slate-50 prose-th:p-2 prose-td:p-2">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -190,7 +159,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <span className="w-2 h-2 rounded-full bg-[#004d40] animate-bounce" style={{ animationDelay: '300ms' }}></span>
               </span>
               <span className="text-xs font-mono text-slate-500">
-                Executando chamada MCP e sintetizando resposta...
+                Executando chamada MCP e formatando dados contextuais...
               </span>
             </div>
           </div>
