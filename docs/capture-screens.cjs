@@ -1,159 +1,72 @@
 const puppeteer = require('puppeteer-core');
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
 
 async function main() {
-  const screenshotsDir = path.join(__dirname, 'screenshots');
-  if (!fs.existsSync(screenshotsDir)) {
-    fs.mkdirSync(screenshotsDir, { recursive: true });
-  }
-
-  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-  const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-  const executablePath = fs.existsSync(chromePath) ? chromePath : edgePath;
-
-  console.log('Using browser at:', executablePath);
-
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1440,900']
-  });
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
-
-  // 1. Home Dashboard
-  console.log('Capturing 01-dashboard-home.png...');
-  await page.goto('http://localhost:5173', { waitUntil: 'networkidle0' });
-  await new Promise(r => setTimeout(r, 1000));
-  await page.screenshot({ path: path.join(screenshotsDir, '01-dashboard-home.png') });
-
-  // 2. Full Page Chat
-  console.log('Capturing 02-assistente-chat-fullscreen.png...');
-  // Click on "Assistente Chat (IA)" in sidebar
-  const buttons = await page.$$('button');
-  for (const b of buttons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Assistente Chat')) {
-      await b.click();
-      break;
+  const directory = path.join(__dirname, 'screenshots');
+  fs.mkdirSync(directory, { recursive: true });
+  const executablePath = process.env.CHROME_PATH || [
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    '/usr/bin/google-chrome', '/usr/bin/chromium',
+  ].find(candidate => fs.existsSync(candidate));
+  if (!executablePath) throw new Error('Informe CHROME_PATH com o caminho do Chrome ou Edge.');
+  const browser = await puppeteer.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    await page.goto(process.env.CAPTURE_URL || 'http://localhost:5173', { waitUntil: 'networkidle0' });
+    await page.evaluate(() => document.fonts.ready);
+    const click = label => page.locator(`button[aria-label="${label}"]`).click();
+    const tab = async label => {
+      const mobile = (await page.viewport()).width < 768;
+      await page.locator(`nav[aria-label="${mobile ? 'Navegação mobile' : 'Navegação principal'}"] button[aria-label="${label}"]`).click();
+      await page.waitForFunction(() => window.scrollY === 0);
+    };
+    const shot = async (name, fullPage = false) => {
+      await page.screenshot({ path: path.join(directory, name), type: 'jpeg', quality: 90, fullPage });
+      console.log(name);
+    };
+    const assertLayout = async () => {
+      const result = await page.evaluate(() => ({
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        gap: innerWidth >= 768 ? document.querySelector('.page-heading').getBoundingClientRect().left - document.querySelector('.app-sidebar').getBoundingClientRect().right : null,
+        inputFits: !document.querySelector('.chat-composer') || document.querySelector('.chat-composer').getBoundingClientRect().bottom <= innerHeight,
+      }));
+      assert.equal(result.overflow, false, 'A página não deve apresentar rolagem horizontal.');
+      if (result.gap !== null) assert.ok(Math.abs(result.gap - 40) < 1, 'O conteúdo deve ficar a 40 px do menu.');
+      assert.equal(result.inputFits, true, 'O campo de mensagem deve permanecer visível.');
+    };
+    await shot('01-dashboard-home.jpg', true);
+    await tab('Assistente IA');
+    await page.locator('.quick-prompts button').filter(button => button.innerText === 'Meu saldo').click();
+    await page.waitForSelector('.chat-account-list');
+    await assertLayout();
+    await shot('02-assistente-chat-fullscreen.jpg');
+    await click('Recolher menu');
+    await page.waitForFunction(() => Math.abs(document.querySelector('.app-sidebar').getBoundingClientRect().width - 80) < 1);
+    await assertLayout();
+    await shot('13-assistente-menu-recolhido.jpg');
+    await click('Expandir menu');
+    await page.waitForFunction(() => Math.abs(document.querySelector('.app-sidebar').getBoundingClientRect().width - 248) < 1);
+    await tab('Investimentos'); await shot('03-investimentos-moderado.jpg', true);
+    await tab('Transações'); await shot('04-transacoes-padroes.jpg', true);
+    await tab('Perfis e acessos'); await shot('05-usuarios-perfis.jpg');
+    await click('Configurações'); await shot('06-configuracoes.jpg'); await click('Fechar configurações');
+    await tab('Visão geral'); await click('Abrir assistente financeiro'); await shot('07-chat-flutuante.jpg'); await click('Fechar assistente');
+    await click('Notificações'); await shot('08-notificacoes.jpg'); await click('Fechar notificações');
+    await click('Sair'); await shot('09-tela-login.jpg');
+    await page.locator('.login-access button').click();
+    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+    await tab('Visão geral'); await assertLayout(); await shot('10-dashboard-mobile.jpg');
+    await tab('Assistente IA'); await assertLayout(); await shot('11-assistente-mobile.jpg');
+    await click('Usar assistente em janela flutuante'); await assertLayout(); await shot('12-chat-flutuante-mobile.jpg'); await click('Fechar assistente');
+    for (const viewport of [{width:320,height:640},{width:390,height:480},{width:768,height:1024},{width:1024,height:768}]) {
+      await page.setViewport(viewport);
+      for (const label of ['Visão geral', 'Transações', 'Investimentos', 'Perfis e acessos', 'Assistente IA']) { await tab(label); await assertLayout(); }
     }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  // Click the quick prompt "Saldo Geral" to show rich widgets
-  const promptButtons = await page.$$('button');
-  for (const pb of promptButtons) {
-    const text = await page.evaluate(el => el.innerText, pb);
-    if (text && text.includes('Saldo Geral')) {
-      await pb.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 1200));
-  await page.screenshot({ path: path.join(screenshotsDir, '02-assistente-chat-fullscreen.png') });
-
-  // 3. Investments Page
-  console.log('Capturing 03-investimentos-moderado.png...');
-  const navButtons = await page.$$('button');
-  for (const b of navButtons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Investimentos')) {
-      await b.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  await page.screenshot({ path: path.join(screenshotsDir, '03-investimentos-moderado.png') });
-
-  // 4. Transactions & 3 Spending Patterns
-  console.log('Capturing 04-transacoes-padroes.png...');
-  const txButtons = await page.$$('button');
-  for (const b of txButtons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Transações & 3 Padrões')) {
-      await b.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  await page.screenshot({ path: path.join(screenshotsDir, '04-transacoes-padroes.png') });
-
-  // 5. Users and Profiles
-  console.log('Capturing 05-usuarios-perfis.png...');
-  const userButtons = await page.$$('button');
-  for (const b of userButtons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Usuários & Perfis')) {
-      await b.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  await page.screenshot({ path: path.join(screenshotsDir, '05-usuarios-perfis.png') });
-
-  // 6. Architecture Drawer ("O Caminho da Resposta")
-  console.log('Capturing 06-caminho-da-resposta.png...');
-  const archButtons = await page.$$('button');
-  for (const b of archButtons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Caminhos & Respostas')) {
-      await b.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  await page.screenshot({ path: path.join(screenshotsDir, '06-caminho-da-resposta.png') });
-
-  // Close drawer by pressing Escape or close button
-  await page.keyboard.press('Escape');
-  await new Promise(r => setTimeout(r, 500));
-
-  // 7. Floating Chat Widget (Back to Home, then open floating chat)
-  console.log('Capturing 07-chat-flutuante.png...');
-  await page.goto('http://localhost:5173', { waitUntil: 'networkidle0' });
-  await new Promise(r => setTimeout(r, 800));
-  // Find FAB button "Assistente IA" and click it
-  const fabButtons = await page.$$('button');
-  for (const b of fabButtons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Assistente IA')) {
-      await b.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  await page.screenshot({ path: path.join(screenshotsDir, '07-chat-flutuante.png') });
-
-  // 8. Notifications Drawer
-  console.log('Capturing 08-notificacoes.png...');
-  const bellButton = await page.$('button[title*="Notificações"]');
-  if (bellButton) {
-    await bellButton.click();
-    await new Promise(r => setTimeout(r, 800));
-    await page.screenshot({ path: path.join(screenshotsDir, '08-notificacoes.png') });
-    await page.keyboard.press('Escape');
-    await new Promise(r => setTimeout(r, 500));
-  }
-
-  // 9. Login Page
-  console.log('Capturing 09-tela-login.png...');
-  const logoutButtons = await page.$$('button');
-  for (const b of logoutButtons) {
-    const text = await page.evaluate(el => el.innerText, b);
-    if (text && text.includes('Sair')) {
-      await b.click();
-      break;
-    }
-  }
-  await new Promise(r => setTimeout(r, 800));
-  await page.screenshot({ path: path.join(screenshotsDir, '09-tela-login.png') });
-
-  console.log('All screenshots captured successfully in docs/screenshots!');
-  await browser.close();
+    console.log('Galeria atualizada e verificações de layout concluídas.');
+  } finally { await browser.close(); }
 }
-
-main().catch(err => {
-  console.error('Error capturing screenshots:', err);
-  process.exit(1);
-});
+main().catch(error => { console.error(error); process.exitCode = 1; });

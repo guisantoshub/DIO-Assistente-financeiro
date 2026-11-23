@@ -1,273 +1,107 @@
-import type { ChatMessage, MCPToolCall } from '../types';
-import { MOCK_ACCOUNTS, MOCK_TRANSACTIONS } from '../data/mockData';
-
-export interface ChatEngineResponse {
-  message: ChatMessage;
-}
-
+import type { ChatMessage, MCPToolCall } from "../types";
+import {
+  MOCK_ACCOUNTS,
+  MOCK_TRANSACTIONS,
+  MOCK_INVESTMENTS,
+} from "../data/mockData";
 export function processUserQuery(
   query: string,
-  usdBrlRate: number = 5.85
+  usdBrlRate = 5.85,
 ): {
   replyText: string;
   toolCalls: MCPToolCall[];
-  dataPayload?: any;
+  dataPayload?: ChatMessage["dataPayload"];
 } {
-  const normalized = query.toLowerCase();
-  const timestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  // 1. Pergunta sobre SALDO / CONTAS
-  if (
-    normalized.includes('saldo') || 
-    normalized.includes('conta') || 
-    normalized.includes('quanto tenho') ||
-    normalized.includes('dinheiro')
-  ) {
-    const totalCheckingSavingsUSD = MOCK_ACCOUNTS
-      .filter(a => a.type === 'depository')
-      .reduce((acc, curr) => acc + curr.currentBalance, 0);
-
-    const toolCalls: MCPToolCall[] = [
-      {
-        id: `call_${Date.now()}_1`,
-        server: 'plaid',
-        toolName: 'plaid_get_accounts',
-        parameters: { client_id: 'sandbox_client_id', include_balances: true },
-        resultSummary: `Retornou 4 contas ativas (Checking, Savings, CD, Credit Card). Saldo líquido em depósito: $${totalCheckingSavingsUSD.toFixed(2)} USD.`,
-        latencyMs: 38,
-        timestamp,
-        endpointUrl: 'https://sandbox.plaid.com/accounts/balance/get'
-      }
-    ];
-
-    const replyText = `Consultei o servidor **MCP Plaid** e obtive a posição consolidada das suas contas em tempo real.
-
-Abaixo você confere o resumo financeiro com conversão declarada em Reais (cotação **US$ 1 = R$ ${usdBrlRate.toFixed(2)}**), separando claramente o **saldo disponível em depósito** da **fatura do cartão de crédito**:`;
-
-    return {
-      replyText,
-      toolCalls,
-      dataPayload: {
-        type: 'accounts',
-        data: MOCK_ACCOUNTS
-      }
-    };
-  }
-
-  // 2. Pergunta sobre INVESTIMENTOS & CARTEIRA MODERADA
-  if (
-    normalized.includes('invest') || 
-    normalized.includes('carteira') || 
-    normalized.includes('moderado') || 
-    normalized.includes('cdb') ||
-    normalized.includes('fii') ||
-    normalized.includes('ações') ||
-    normalized.includes('rendimento')
-  ) {
-    const toolCalls: MCPToolCall[] = [
-      {
-        id: `call_${Date.now()}_inv`,
-        server: 'pluggy',
-        toolName: 'pluggy_get_investments',
-        parameters: { client_profile: 'moderado', include_benchmarks: true },
-        resultSummary: `Obtida carteira de R$ 84.500,00 (5 ativos). Rentabilidade 12M: +13,82% (122% do CDI).`,
-        latencyMs: 36,
-        timestamp,
-        endpointUrl: 'https://mcp.pluggy.ai/mcp/investments'
-      }
-    ];
-
-    const replyText = `### 📈 Análise da sua Carteira (Perfil Moderado)
-
-Consultei o conector de investimentos do **Open Finance Brasil** via **Pluggy MCP**:
-
-- **Patrimônio Total Alocado:** **R$ 84.500,00** (~US$ ${(84500 / usdBrlRate).toFixed(2)})
-- **Rentabilidade Acumulada (12M):** **+13,82%** (representando **122% do CDI**)
-- **Estratégia Recomendada:** Alocação de 60% em Renda Fixa (CDB 110% CDI + Tesouro IPCA+ 2035) garantindo liquidez e proteção inflacionária, 20% em Fundos Imobiliários gerando proventos mensais isentos, 15% em ações de dividendos defensivos e 5% em Dólar (Plaid CD).
-
-Você pode visualizar a aba **Investimentos** no menu lateral para o gráfico completo de alocação de ativos.`;
-
-    return {
-      replyText,
-      toolCalls,
-      dataPayload: {
-        type: 'mcp_explanation',
-        data: { topic: 'card_debt' }
-      }
-    };
-  }
-  if (
-    normalized.includes('padrão') || 
-    normalized.includes('padroes') || 
-    normalized.includes('gasto') || 
-    normalized.includes('transa') ||
-    normalized.includes('extrato') ||
-    normalized.includes('compras')
-  ) {
-    const toolCalls: MCPToolCall[] = [
-      {
-        id: `call_${Date.now()}_2`,
-        server: 'plaid',
-        toolName: 'plaid_get_transactions',
-        parameters: { 
-          start_date: '2026-11-01', 
-          end_date: '2026-11-22',
-          count: 15
-        },
-        resultSummary: `Retornou 13 transações classificadas em 3 categorias principais de consumo.`,
-        latencyMs: 42,
-        timestamp,
-        endpointUrl: 'https://sandbox.plaid.com/transactions/get'
-      }
-    ];
-
-    const subTotal = MOCK_TRANSACTIONS
-      .filter(t => t.spendingPattern === 'assinaturas_recorrentes')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const foodTotal = MOCK_TRANSACTIONS
-      .filter(t => t.spendingPattern === 'alimentacao_restaurantes')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const retailTotal = MOCK_TRANSACTIONS
-      .filter(t => t.spendingPattern === 'varejo_viagens')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const replyText = `O servidor **MCP Plaid** processou seu extrato recente. Agrupamos seus gastos em **3 padrões de consumo claros** para você visualizar onde seu dinheiro está sendo alocado:`;
-
-    return {
-      replyText,
-      toolCalls,
-      dataPayload: {
-        type: 'patterns',
-        data: { subTotal, foodTotal, retailTotal, transactions: MOCK_TRANSACTIONS }
-      }
-    };
-  }
-
-  // 3. Pergunta sobre POR QUE CARTÃO É DÍVIDA
-  if (
-    normalized.includes('cartão') || 
-    normalized.includes('cartao') || 
-    normalized.includes('dívida') || 
-    normalized.includes('divida') ||
-    normalized.includes('passivo')
-  ) {
-    const toolCalls: MCPToolCall[] = [
-      {
-        id: `call_${Date.now()}_3`,
-        server: 'pluggy',
-        toolName: 'pluggy_explain_account_types',
-        parameters: { schema: 'open_finance_brasil', type: 'credit_card' },
-        resultSummary: `Definição técnica Open Finance: Cartões de crédito possuem saldo de natureza devedora (passivo circulante).`,
-        latencyMs: 31,
-        timestamp,
-        endpointUrl: 'https://mcp.pluggy.ai/mcp/docs/schemas/credit-card'
-      }
-    ];
-
-    const replyText = `Nas APIs bancárias e no **Open Finance** (Plaid e Pluggy), o saldo de um **cartão de crédito** tem uma natureza contábil oposta à de uma conta corrente. Veja o comparativo visual abaixo:`;
-
-    return {
-      replyText,
-      toolCalls,
-      dataPayload: {
-        type: 'mcp_explanation',
-        data: { topic: 'card_debt' }
-      }
-    };
-  }
-
-  // 4. Pergunta sobre PLUGGY / ITEM / OPEN FINANCE BRASIL
-  if (
-    normalized.includes('pluggy') || 
-    normalized.includes('item') || 
-    normalized.includes('open finance') ||
-    normalized.includes('brasil')
-  ) {
-    const toolCalls: MCPToolCall[] = [
-      {
-        id: `call_${Date.now()}_4`,
-        server: 'pluggy',
-        toolName: 'pluggy_search_docs',
-        parameters: { query: 'O que é um Item no Open Finance Pluggy?' },
-        resultSummary: `Encontrada documentação oficial em https://docs.pluggy.ai/docs/item-concept`,
-        latencyMs: 45,
-        timestamp,
-        endpointUrl: 'https://mcp.pluggy.ai/mcp'
-      }
-    ];
-
-    const replyText = `Consultei a documentação oficial via **Streamable HTTP MCP Pluggy** (\`https://mcp.pluggy.ai/mcp\`). 
-
-No ecossistema brasileiro de Open Finance, um **Item** é o alicerce de toda integração financeira:`;
-
-    return {
-      replyText,
-      toolCalls,
-      dataPayload: {
-        type: 'mcp_explanation',
-        data: { topic: 'pluggy_item' }
-      }
-    };
-  }
-
-  // 5. Pergunta sobre CONVENÇÃO DE SINAIS PLAID
-  if (
-    normalized.includes('sinal') || 
-    normalized.includes('sinais') || 
-    normalized.includes('positivo') || 
-    normalized.includes('negativo')
-  ) {
-    const toolCalls: MCPToolCall[] = [
-      {
-        id: `call_${Date.now()}_5`,
-        server: 'plaid',
-        toolName: 'plaid_get_spec',
-        parameters: { entity: 'transactions.amount' },
-        resultSummary: `Regra de sinal Plaid: positive amount indicates cash outflow (expense/debit), negative indicates inflow (credit/deposit).`,
-        latencyMs: 22,
-        timestamp,
-        endpointUrl: 'https://sandbox.plaid.com/spec'
-      }
-    ];
-
-    const replyText = `Ao trabalhar com a API da **Plaid**, a convenção contábil de sinais pode parecer contra-intuitiva à primeira vista:
-
-- 🔴 **Valor Positivo (\`+19.99\`):** Representa **SAÍDA de dinheiro (Débito/Compra)**.
-- 🟢 **Valor Negativo (\`-2500.00\`):** Representa **ENTRADA de dinheiro (Crédito/Salário)**.
-
-Isso ocorre porque a conta bancária é tratada sob a perspectiva contábil de passivo da instituição. Nosso assistente normaliza essa visualização para facilitar o entendimento do usuário final.`;
-
-    return {
-      replyText,
-      toolCalls,
-      dataPayload: {
-        type: 'mcp_explanation',
-        data: { topic: 'plaid_signs' }
-      }
-    };
-  }
-
-  // Resposta padrão contextual
-  const toolCalls: MCPToolCall[] = [
-    {
-      id: `call_${Date.now()}_def`,
-      server: 'plaid',
-      toolName: 'plaid_health_check',
-      parameters: { client_id: 'sandbox_client_id' },
-      resultSummary: `MCP Server Plaid & Pluggy conectados e prontos para consulta.`,
-      latencyMs: 19,
-      timestamp
-    }
-  ];
-
-  const replyText = `Olá! Sou seu **Assistente Financeiro Inteligente**. Estou conectado via **MCP (Model Context Protocol)** à **Pluggy** (Open Finance Brasil) e à **Plaid** (Sandbox de Contas e Extratos).
-
-Escolha uma das perguntas rápidas abaixo ou me pergunte diretamente sobre seus saldos, faturas ou padrões de consumo!`;
-
-  return {
+  const normalized = query
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  // Internal educational metadata is retained, but never rendered in the customer UI.
+  const result = (
+    replyText: string,
+    toolName: string,
+    dataPayload?: ChatMessage["dataPayload"],
+  ) => ({
     replyText,
-    toolCalls
-  };
+    dataPayload,
+    toolCalls: [
+      {
+        id: `call-${Date.now()}`,
+        server: "plaid" as const,
+        toolName,
+        parameters: { simulated: true },
+        resultSummary:
+          "Resposta gerada a partir dos dados de demonstração locais.",
+        latencyMs: 0,
+        timestamp: new Date().toLocaleTimeString("pt-BR"),
+      },
+    ],
+  });
+  if (/cartao|fatura|divida|passivo/.test(normalized)) {
+    const card = MOCK_ACCOUNTS.find((account) => account.type === "credit");
+    const usd = (value: number) =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(value);
+    return result(
+      `Sua fatura em aberto é de **${usd(card?.currentBalance ?? 0)}**. Esse é o valor das compras que ainda precisa pagar.\n\nO limite disponível para novas compras é de **${usd(card?.availableBalance ?? 0)}**. Ele não faz parte do dinheiro que você tem em conta.\n\nNa visão geral, mostramos a fatura separada dos seus saldos para facilitar o acompanhamento.`,
+      "explain_credit_card",
+    );
+  }
+  if (/invest|carteira|moderado|cdb|fii|acoes|rendimento/.test(normalized)) {
+    const portfolio = MOCK_INVESTMENTS;
+    return result(
+      `### Sua carteira em perspectiva\n\nNa demonstração, seu patrimônio é de **R$ 84.500,00** (aproximadamente US$ ${(portfolio.totalValueBRL / usdBrlRate).toFixed(2)}). A rentabilidade ilustrativa dos últimos 12 meses é de **13,82%**.\n\nA composição da carteira é:\n\n- **35%** em renda fixa pós-fixada.\n- **25%** em títulos ligados à inflação.\n- **20%** em fundos imobiliários.\n- **15%** em ações de dividendos.\n- **5%** em aplicações em dólar.\n\nVeja os ativos e seus valores em **Investimentos**. Esta é uma composição ilustrativa, sem recomendação personalizada.`,
+      "get_investments",
+    );
+  }
+  if (/gasto|padrao|padroes|transa|extrato|compras|despesa/.test(normalized)) {
+    const sum = (pattern: string) =>
+      MOCK_TRANSACTIONS.filter(
+        (transaction) =>
+          transaction.spendingPattern === pattern && transaction.amount > 0,
+      ).reduce((total, transaction) => total + transaction.amount, 0);
+    return result(
+      "Seus gastos estão organizados em **três grupos**. Assim fica mais fácil perceber quais despesas são recorrentes e quais variam no mês.",
+      "get_transactions",
+      {
+        type: "patterns",
+        data: {
+          subTotal: sum("assinaturas_recorrentes"),
+          foodTotal: sum("alimentacao_restaurantes"),
+          retailTotal: sum("varejo_viagens"),
+          transactions: MOCK_TRANSACTIONS,
+        },
+      },
+    );
+  }
+  if (/saldo|conta|quanto tenho|dinheiro/.test(normalized)) {
+    const total = MOCK_ACCOUNTS.filter(
+      (account) => account.type === "depository",
+    ).reduce((sum, account) => sum + account.currentBalance, 0);
+    const balance = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(total);
+    return result(
+      `Você tem **${balance}** em contas de depósito nesta demonstração. A fatura do cartão aparece separadamente, pois é um valor a pagar.\n\nConfira o detalhamento abaixo. A conversão usa a cotação de referência de **R$ ${usdBrlRate.toFixed(2).replace(".", ",")} por dólar**.`,
+      "get_accounts",
+      { type: "accounts", data: MOCK_ACCOUNTS },
+    );
+  }
+  if (/sinal|sinais|positivo|negativo|entrada|saida/.test(normalized))
+    return result(
+      "No seu extrato, **entradas aparecem com +** e **saídas com −**. O salário é uma entrada; uma compra é uma saída. Você também encontra a identificação de cada movimentação ao lado do valor.",
+      "explain_transactions",
+    );
+  if (/open finance|pluggy|plaid|item|mcp/.test(normalized))
+    return result(
+      "O **Open Finance** permite compartilhar informações financeiras entre instituições com a sua autorização. Você escolhe o que compartilhar e pode gerenciar as permissões no aplicativo do seu banco.\n\nNesta demonstração, todos os dados são ilustrativos e nenhuma conta real é acessada.",
+      "explain_open_finance",
+    );
+  return result(
+    "Posso ajudar com **saldos**, **fatura do cartão**, **gastos** e **investimentos** desta demonstração.\n\nExperimente perguntar “Como estão meus gastos?” ou escolha uma das sugestões abaixo.",
+    "help",
+  );
 }

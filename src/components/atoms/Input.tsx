@@ -18,7 +18,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   id,
   ...props
 }, ref) => {
-  const generatedId = id || React.useId();
+  const automaticId = React.useId();
+  const generatedId = id || automaticId;
 
   return (
     <div className="w-full flex flex-col gap-1.5 text-left">

@@ -3,7 +3,7 @@ import type { Account, Transaction } from '../types';
 export const MOCK_ACCOUNTS: Account[] = [
   {
     id: 'acc_plaid_chk_01',
-    name: 'Plaid Checking (Conta Corrente)',
+    name: 'Conta corrente',
     officialName: 'Plaid Gold Standard Checking Account',
     type: 'depository',
     subtype: 'checking',
@@ -12,11 +12,11 @@ export const MOCK_ACCOUNTS: Account[] = [
     availableBalance: 100.00,
     currency: 'USD',
     isoCurrencyCode: 'USD',
-    institutionName: 'First Platypus Bank (Plaid Sandbox)',
+    institutionName: 'First Platypus Bank',
   },
   {
     id: 'acc_plaid_sav_02',
-    name: 'Plaid Savings (Poupança Reserva)',
+    name: 'Poupança reserva',
     officialName: 'Plaid Silver High-Yield Savings Account',
     type: 'depository',
     subtype: 'savings',
@@ -25,11 +25,11 @@ export const MOCK_ACCOUNTS: Account[] = [
     availableBalance: 23631.98,
     currency: 'USD',
     isoCurrencyCode: 'USD',
-    institutionName: 'First Platypus Bank (Plaid Sandbox)',
+    institutionName: 'First Platypus Bank',
   },
   {
     id: 'acc_plaid_crd_03',
-    name: 'Plaid Diamond Credit Card',
+    name: 'Cartão Diamond',
     officialName: 'Plaid Premier Cashback Rewards',
     type: 'credit',
     subtype: 'credit card',
@@ -39,11 +39,11 @@ export const MOCK_ACCOUNTS: Account[] = [
     limit: 2000.00,
     currency: 'USD',
     isoCurrencyCode: 'USD',
-    institutionName: 'First Platypus Bank (Plaid Sandbox)',
+    institutionName: 'First Platypus Bank',
   },
   {
     id: 'acc_plaid_cd_04',
-    name: 'Plaid CD (Certificado de Depósito)',
+    name: 'Reserva em dólar',
     officialName: 'Plaid 12 Month Term Certificate',
     type: 'depository',
     subtype: 'money market',
@@ -52,7 +52,7 @@ export const MOCK_ACCOUNTS: Account[] = [
     availableBalance: 1000.00,
     currency: 'USD',
     isoCurrencyCode: 'USD',
-    institutionName: 'First Platypus Bank (Plaid Sandbox)',
+    institutionName: 'First Platypus Bank',
   }
 ];
 
@@ -284,14 +284,14 @@ export const MOCK_INVESTMENTS: InvestmentPortfolio = {
     },
     {
       id: 'inv_05',
-      name: 'Plaid CD 12-Month Term Certificate',
+      name: 'Certificado de depósito em dólar',
       category: 'Internacional',
       allocationPct: 5,
       valueBRL: 4225.00,
       valueUSD: 722.24,
       expectedReturn: '5.10% a.a. em USD',
       riskLevel: 'Baixo',
-      institution: 'First Platypus Bank (Plaid Sandbox)'
+      institution: 'First Platypus Bank'
     }
   ]
 };
@@ -315,8 +315,8 @@ export const MOCK_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif_3',
-    title: 'Sincronização MCP Concluída',
-    description: 'Servidores Pluggy (Open Finance Brasil) e Plaid (Sandbox) sincronizaram dados com 0 erros de autorização.',
+    title: 'Suas contas estão atualizadas',
+    description: 'Os saldos e as movimentações da sua demonstração estão disponíveis para consulta.',
     timestamp: 'Ontem, 18:45',
     type: 'info',
     read: true

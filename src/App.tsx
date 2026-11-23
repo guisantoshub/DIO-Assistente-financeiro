@@ -1,287 +1,335 @@
-import React, { useState } from 'react';
-import { Sidebar } from './components/organisms/Sidebar';
-import { ModernHeader } from './components/organisms/ModernHeader';
-import { AccountsOverview } from './components/organisms/AccountsOverview';
-import { TransactionsTable } from './components/organisms/TransactionsTable';
-import { InvestmentsPage } from './components/organisms/InvestmentsPage';
-import { UsersPage } from './components/organisms/UsersPage';
-import { ChatWindow } from './components/organisms/ChatWindow';
-import { LoginPage } from './components/organisms/LoginPage';
-import { FloatingChat } from './components/organisms/FloatingChat';
-import { MCPConfigModal } from './components/organisms/MCPConfigModal';
-import { ArchitectureDrawer } from './components/organisms/ArchitectureDrawer';
-import { NotificationsModal } from './components/organisms/NotificationsModal';
-import { Minimize2, Bot } from 'lucide-react';
-import type { ChatMessage, MCPConfig, NotificationItem } from './types';
-import { 
-  MOCK_ACCOUNTS, 
-  MOCK_TRANSACTIONS, 
-  MOCK_INVESTMENTS, 
-  MOCK_NOTIFICATIONS, 
-  MOCK_USERS 
-} from './data/mockData';
-import { processUserQuery } from './services/chatEngine';
+import { useEffect, useState } from "react";
+import { Sidebar } from "./components/organisms/Sidebar";
+import { ModernHeader } from "./components/organisms/ModernHeader";
+import { AccountsOverview } from "./components/organisms/AccountsOverview";
+import { TransactionsTable } from "./components/organisms/TransactionsTable";
+import { InvestmentsPage } from "./components/organisms/InvestmentsPage";
+import { UsersPage } from "./components/organisms/UsersPage";
+import { ChatWindow } from "./components/organisms/ChatWindow";
+import { LoginPage } from "./components/organisms/LoginPage";
+import { FloatingChat } from "./components/organisms/FloatingChat";
+import { PreferencesModal } from "./components/organisms/PreferencesModal";
+import { HelpModal } from "./components/organisms/HelpModal";
+import { NotificationsModal } from "./components/organisms/NotificationsModal";
+import { Minimize2, Sparkles } from "lucide-react";
+import type { ChatMessage } from "./types";
+import {
+  MOCK_ACCOUNTS,
+  MOCK_TRANSACTIONS,
+  MOCK_INVESTMENTS,
+  MOCK_NOTIFICATIONS,
+  MOCK_USERS,
+} from "./data/mockData";
+import { processUserQuery } from "./services/chatEngine";
 
-export const App: React.FC = () => {
-  // Authentication & Layout state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>('home');
-  const [showBRL, setShowBRL] = useState<boolean>(true);
-
-  // Modals & Floating Drawer states
-  const [isFloatingChatOpen, setIsFloatingChatOpen] = useState<boolean>(false);
-  const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
-  const [isArchitectureOpen, setIsArchitectureOpen] = useState<boolean>(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-
-  // Notifications state
-  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
-
-  // MCP Configuration state
-  const [mcpConfig, setMcpConfig] = useState<MCPConfig>({
-    pluggyUrl: 'https://mcp.pluggy.ai/mcp',
-    pluggyStatus: 'connected',
-    plaidClientId: 'sandbox_client_id_demo',
-    plaidSecret: 'sandbox_secret_demo',
-    plaidEnv: 'sandbox',
-    plaidStatus: 'connected',
-    usdBrlRate: 5.85
-  });
-
-  // Chat conversation state
-  const [messages, setMessages] = useState<ChatMessage[]>([
+const pageTitles: Record<string, { title: string; description: string }> = {
+  home: {
+    title: "Seu dinheiro, em perspectiva",
+    description:
+      "Acompanhe suas contas e encontre mais equilíbrio no dia a dia.",
+  },
+  transactions: {
+    title: "Suas transações",
+    description: "Entenda de onde vem e para onde vai o seu dinheiro.",
+  },
+  investments: {
+    title: "Seus investimentos",
+    description: "Uma visão clara do seu patrimônio e da sua carteira.",
+  },
+  chat: {
+    title: "Seu assistente financeiro",
+    description: "Mais clareza para cuidar do que importa.",
+  },
+  users: {
+    title: "Perfis e acessos",
+    description: "Conheça as pessoas vinculadas à sua conta.",
+  },
+};
+function readPreference(key: string, fallback: boolean) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value === "true";
+  } catch {
+    return fallback;
+  }
+}
+export function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(() =>
+    readPreference("petrofinance-sidebar", true),
+  );
+  const [activeTab, setActiveTab] = useState("home");
+  const [showBRL, setShowBRL] = useState(() =>
+    readPreference("petrofinance-brl", true),
+  );
+  const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [today] = useState(() =>
+    new Date().toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }),
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
-      id: 'msg_initial_1',
-      sender: 'assistant',
-      content: `Olá, **Guilherme**! Sou seu **Assistente Financeiro Inteligente**.
-
-Estou conectado via **MCP (Model Context Protocol)** à **Pluggy** (Open Finance Brasil) e à **Plaid** (Sandbox de Contas e Investimentos).
-
-Como posso te ajudar hoje? Posso detalhar seus saldos, investimentos de perfil moderado, ou analisar o extrato das suas contas.`,
-      timestamp: '10:00',
-      toolCalls: [
-        {
-          id: 'tool_init_1',
-          server: 'pluggy',
-          toolName: 'pluggy_init_session',
-          parameters: { url: 'https://mcp.pluggy.ai/mcp' },
-          resultSummary: 'Servidor Streamable HTTP Pluggy conectado com sucesso (Open Finance Brasil Docs).',
-          latencyMs: 25,
-          timestamp: '10:00',
-          endpointUrl: 'https://mcp.pluggy.ai/mcp'
-        },
-        {
-          id: 'tool_init_2',
-          server: 'plaid',
-          toolName: 'plaid_get_accounts',
-          parameters: { env: 'sandbox', client_id: 'sandbox_client_id_demo' },
-          resultSummary: 'Sincronizadas 4 contas Sandbox: Checking ($110), Savings ($23.631,98), CD ($1.000) e Credit ($410).',
-          latencyMs: 34,
-          timestamp: '10:00',
-          endpointUrl: 'https://sandbox.plaid.com/accounts/get'
-        }
-      ]
-    }
+      id: "welcome",
+      sender: "assistant",
+      content:
+        "Olá, **Guilherme**! Vamos cuidar das suas finanças?\n\nPosso ajudar você a entender seus **saldos**, organizar seus **gastos** e conhecer seus **investimentos**. Escolha uma sugestão abaixo ou me conte o que precisa.",
+      timestamp: new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    },
   ]);
-
-  const handleSendMessage = (text: string) => {
-    const userTimestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const userMsg: ChatMessage = {
-      id: `usr_${Date.now()}`,
-      sender: 'user',
-      content: text,
-      timestamp: userTimestamp
+  useEffect(() => {
+    try {
+      localStorage.setItem("petrofinance-sidebar", String(isSidebarExpanded));
+      localStorage.setItem("petrofinance-brl", String(showBRL));
+    } catch {
+      /* Storage may be unavailable. */
+    }
+  }, [isSidebarExpanded, showBRL]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsConfigOpen(false);
+        setIsHelpOpen(false);
+        setIsNotificationsOpen(false);
+        setIsFloatingChatOpen(false);
+      }
+      if (event.key === "Tab") {
+        const dialog = document.querySelector('[role="dialog"]');
+        const controls = dialog?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]',
+        );
+        if (!controls?.length) return;
+        const first = controls[0],
+          last = controls[controls.length - 1];
+        if (
+          event.shiftKey &&
+          (document.activeElement === first ||
+            !dialog?.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          last.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last ||
+            !dialog?.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
-
-    setMessages((prev) => [...prev, userMsg]);
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, []);
+  useEffect(() => {
+    if (!(isConfigOpen || isHelpOpen || isNotificationsOpen)) return;
+    const previous = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = "hidden";
+    document.querySelector<HTMLElement>('[role="dialog"] button')?.focus();
+    return () => {
+      document.body.style.overflow = previous;
+      previousFocus?.focus();
+    };
+  }, [isConfigOpen, isHelpOpen, isNotificationsOpen]);
+  const selectTab = (tab: string) => {
+    setActiveTab(tab);
+    setIsFloatingChatOpen(false);
+    window.scrollTo({ top: 0 });
+  };
+  const handleSendMessage = (text: string) => {
+    if (isProcessing || !text.trim()) return;
+    const timestamp = () =>
+      new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `user-${Date.now()}`,
+        sender: "user",
+        content: text,
+        timestamp: timestamp(),
+      },
+    ]);
     setIsProcessing(true);
-
     setTimeout(() => {
-      const response = processUserQuery(text, mcpConfig.usdBrlRate);
-      const assistantTimestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-      const assistantMsg: ChatMessage = {
-        id: `ast_${Date.now()}`,
-        sender: 'assistant',
-        content: response.replyText,
-        timestamp: assistantTimestamp,
-        toolCalls: response.toolCalls,
-        dataPayload: response.dataPayload
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
+      const response = processUserQuery(text, 5.85);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          sender: "assistant",
+          content: response.replyText,
+          timestamp: timestamp(),
+          toolCalls: response.toolCalls,
+          dataPayload: response.dataPayload,
+        },
+      ]);
       setIsProcessing(false);
     }, 600);
   };
-
-  const handleAskAIAboutInvestments = () => {
-    setActiveTab('chat');
-    handleSendMessage('Explique a estratégia da minha carteira de perfil moderado e a rentabilidade acumulada.');
+  const logout = () => {
+    setIsAuthenticated(false);
+    setIsConfigOpen(false);
+    setIsHelpOpen(false);
+    setIsNotificationsOpen(false);
+    setIsFloatingChatOpen(false);
   };
-
-  const handleMarkAllNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map(n => ({ ...n, read: true })));
-  };
-
-  // If logged out, render the Login Page
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={() => setIsAuthenticated(true)} />;
-  }
-
+  if (!isAuthenticated)
+    return (
+      <LoginPage
+        onLogin={() => {
+          setIsAuthenticated(true);
+          selectTab("home");
+        }}
+      />
+    );
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans">
-      
-      {/* Collapsible Sidebar */}
+    <div
+      className={`app-shell ${isSidebarExpanded ? "sidebar-expanded" : "sidebar-collapsed"}`}
+    >
+      <a className="skip-link" href="#main-content">
+        Ir para o conteúdo
+      </a>
       <Sidebar
         isExpanded={isSidebarExpanded}
         onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          if (tab === 'architecture') {
-            setIsArchitectureOpen(true);
-          } else if (tab === 'config') {
-            setIsConfigOpen(true);
-          } else {
-            setActiveTab(tab);
-            if (tab === 'chat') {
-              setIsFloatingChatOpen(false);
-            }
-          }
-        }}
-        onLogout={() => setIsAuthenticated(false)}
+        onSelectTab={selectTab}
+        onLogout={logout}
       />
-
-      {/* Main Content Area with 40px responsive lateral padding (px-5 sm:px-10) */}
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300 min-w-0 ${
-          isSidebarExpanded ? 'ml-64' : 'ml-20'
-        }`}
+      <ModernHeader
+        notifications={notifications}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenSettings={() => setIsConfigOpen(true)}
+        onOpenHelp={() => setIsHelpOpen(true)}
+        onLogout={logout}
+        onOpenUserProfile={() => selectTab("users")}
+        onSearch={(text) => {
+          selectTab("chat");
+          handleSendMessage(text);
+        }}
+      />
+      <main
+        id="main-content"
+        className={`app-main ${activeTab === "chat" ? "chat-mode" : ""}`}
       >
-        {/* Modern Header */}
-        <ModernHeader
-          isSidebarExpanded={isSidebarExpanded}
-          showBRL={showBRL}
-          onToggleBRL={() => setShowBRL(!showBRL)}
-          notifications={notifications}
-          onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenSettings={() => setIsConfigOpen(true)}
-          onOpenHelp={() => setIsArchitectureOpen(true)}
-          onLogout={() => setIsAuthenticated(false)}
-          onOpenUserProfile={() => setActiveTab('users')}
-        />
-
-        {/* Content Views */}
-        <main className="flex-1 pt-20 pb-12 px-5 sm:px-10">
-          {activeTab === 'home' && (
-            <AccountsOverview
-              accounts={MOCK_ACCOUNTS}
-              usdBrlRate={mcpConfig.usdBrlRate}
-              showBRL={showBRL}
-            />
+        <div className="page-heading">
+          <div>
+            <p className="page-eyebrow">
+              {activeTab === "home"
+                ? "BEM-VINDO, GUILHERME"
+                : "SEU ESPAÇO FINANCEIRO"}
+            </p>
+            <h1>{pageTitles[activeTab].title}</h1>
+            <p>{pageTitles[activeTab].description}</p>
+          </div>
+          {activeTab === "chat" ? (
+            <button
+              className="secondary-button minimize-chat"
+              onClick={() => {
+                setActiveTab("home");
+                setIsFloatingChatOpen(true);
+              }}
+              aria-label="Usar assistente em janela flutuante"
+            >
+              <Minimize2 size={17} />
+              <span>Janela flutuante</span>
+            </button>
+          ) : (
+            <span className="page-date">{today}</span>
           )}
-
-          {/* Full Page Chat View (with sidebar visible, exactly as requested) */}
-          {activeTab === 'chat' && (
-            <div className="max-w-5xl mx-auto space-y-4">
-              <div className="flex items-center justify-between bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#004d40] text-white flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-teal-200" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-900">
-                      Assistente Financeiro Inteligente
-                    </h2>
-                    <p className="text-[11px] text-slate-500">
-                      Modo tela inteira • Integrações ativas: Pluggy (HTTP) e Plaid (STDIO)
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('home');
-                    setIsFloatingChatOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                  title="Minimizar para widget flutuante no canto da tela"
-                >
-                  <Minimize2 className="w-4 h-4 text-slate-500" />
-                  <span>Minimizar p/ Flutuante</span>
-                </button>
-              </div>
-
-              <ChatWindow
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                isProcessing={isProcessing}
-                usdBrlRate={mcpConfig.usdBrlRate}
-              />
+        </div>
+        {activeTab === "home" && (
+          <AccountsOverview
+            accounts={MOCK_ACCOUNTS}
+            usdBrlRate={5.85}
+            showBRL={showBRL}
+          />
+        )}
+        {activeTab === "transactions" && (
+          <TransactionsTable
+            transactions={MOCK_TRANSACTIONS}
+            usdBrlRate={5.85}
+            showBRL={showBRL}
+          />
+        )}
+        {activeTab === "investments" && (
+          <InvestmentsPage
+            portfolio={MOCK_INVESTMENTS}
+            usdBrlRate={5.85}
+            showBRL={showBRL}
+            onAskAIAboutInvestments={() => {
+              selectTab("chat");
+              handleSendMessage(
+                "Como está a composição da minha carteira de investimentos?",
+              );
+            }}
+          />
+        )}
+        {activeTab === "users" && (
+          <UsersPage
+            users={MOCK_USERS.filter((user) => user.id !== "usr_bot_mcp")}
+          />
+        )}
+        {activeTab === "chat" && (
+          <div className="full-chat">
+            <div className="chat-context">
+              <Sparkles size={17} />
+              <span>Uma conversa para simplificar suas finanças</span>
+              <span className="chat-context-note">Dados ilustrativos</span>
             </div>
-          )}
-
-          {activeTab === 'transactions' && (
-            <TransactionsTable
-              transactions={MOCK_TRANSACTIONS}
-              usdBrlRate={mcpConfig.usdBrlRate}
-              showBRL={showBRL}
+            <ChatWindow
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isProcessing={isProcessing}
+              usdBrlRate={5.85}
             />
-          )}
-
-          {activeTab === 'investments' && (
-            <InvestmentsPage
-              portfolio={MOCK_INVESTMENTS}
-              usdBrlRate={mcpConfig.usdBrlRate}
-              showBRL={showBRL}
-              onAskAIAboutInvestments={handleAskAIAboutInvestments}
-            />
-          )}
-
-          {activeTab === 'users' && (
-            <UsersPage users={MOCK_USERS} />
-          )}
-        </main>
-      </div>
-
-      {/* Floating Chat (Visible when not in full-page chat mode) */}
-      {activeTab !== 'chat' && (
+          </div>
+        )}
+      </main>
+      {activeTab !== "chat" && (
         <FloatingChat
           isOpen={isFloatingChatOpen}
           onToggleOpen={() => setIsFloatingChatOpen(!isFloatingChatOpen)}
-          onExpandToFullPage={() => {
-            setIsFloatingChatOpen(false);
-            setActiveTab('chat');
-          }}
+          onExpandToFullPage={() => selectTab("chat")}
           messages={messages}
           onSendMessage={handleSendMessage}
           isProcessing={isProcessing}
-          usdBrlRate={mcpConfig.usdBrlRate}
+          usdBrlRate={5.85}
         />
       )}
-
-      {/* Modals & Drawers */}
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         notifications={notifications}
-        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+        onMarkAllAsRead={() =>
+          setNotifications((prev) =>
+            prev.map((notification) => ({ ...notification, read: true })),
+          )
+        }
       />
-
-      <MCPConfigModal
-        isOpen={isConfigOpen}
-        onClose={() => setIsConfigOpen(false)}
-        config={mcpConfig}
-        onSaveConfig={setMcpConfig}
-      />
-
-      <ArchitectureDrawer
-        isOpen={isArchitectureOpen}
-        onClose={() => setIsArchitectureOpen(false)}
-      />
+      {isConfigOpen && (
+        <PreferencesModal
+          showBRL={showBRL}
+          onToggleBRL={() => setShowBRL(!showBRL)}
+          onClose={() => setIsConfigOpen(false)}
+        />
+      )}
+      {isHelpOpen && <HelpModal onClose={() => setIsHelpOpen(false)} />}
     </div>
   );
-};
-
+}
 export default App;
